@@ -217,7 +217,7 @@ class EditRewardInferencer:
                 "image_inputs": image_inputs,
             }
 
-    def reward(self, prompts, image_src, image_paths):
+    def reward(self, prompts, image_src, image_paths) -> torch.Tensor:
         batch = self.prepare_batch(image_src, image_paths, prompts)
         rewards = self.model(return_dict=True, **batch)["logits"]
         return rewards

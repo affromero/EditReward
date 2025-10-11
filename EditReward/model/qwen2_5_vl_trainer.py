@@ -382,9 +382,30 @@ class Qwen2_5_VLRewardModelBT_MultiHead(Qwen2_5_VLForConditionalGeneration):
             # 否则 fuse 成一个
             stacked = torch.stack(logits_per_head, dim=0)  # [num_heads, B, out_dim]
             if self.pooling_strategy == "min":
-                final_logits = torch.min(torch.stack(logits_per_head, dim=0), dim=0).values
+                # For "min", apply min to the means, and propagate sigma of the minimum mean
+                means = stacked[:, :, 0]  # [num_heads, B]
+                sigmas = torch.exp(stacked[:, :, 1]) if stacked.shape[2] > 1 else None  # [num_heads, B] if available
+                min_indices = means.argmin(dim=0)  # [B]
+                final_mean = means.min(dim=0).values  # [B]
+                if sigmas is not None:
+                    # Select sigma corresponding to the min mean for each item in batch
+                    final_sigma = sigmas.gather(0, min_indices.unsqueeze(0)).squeeze(0)
+                    final_logits = torch.stack([final_mean, torch.log(final_sigma)], dim=-1)  # [B, 2]
+                else:
+                    final_logits = final_mean
             elif self.pooling_strategy == "mean":
-                final_logits = torch.mean(torch.stack(logits_per_head, dim=0), dim=0)
+                # For "mean", average means, and combine variance appropriately
+                means = stacked[:, :, 0]  # [num_heads, B]
+                if stacked.shape[2] > 1:
+                    sigmas = torch.exp(stacked[:, :, 1])  # [num_heads, B]
+                    # Mean of means
+                    final_mean = means.mean(dim=0)  # [B]
+                    # Variance sum divided by N^2 for mean-aggregation of independent Gaussians
+                    final_var = (sigmas**2).sum(dim=0) / (means.shape[0] ** 2)
+                    final_sigma = torch.sqrt(final_var)
+                    final_logits = torch.stack([final_mean, torch.log(final_sigma)], dim=-1)
+                else:
+                    final_logits = means.mean(dim=0)
             elif self.pooling_strategy == "sum":
                 means = stacked[:, :, 0]                      # [num_heads, B]
                 sigmas = torch.exp(stacked[:, :, 1])          # [num_heads, B]
