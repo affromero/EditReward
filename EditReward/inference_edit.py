@@ -1,5 +1,6 @@
 import os
 from collections.abc import Mapping
+from EditReward.model.qwen2_5_vl_trainer import Qwen2_5_VLRewardModelBT_MultiHead
 import torch
 import safetensors
 from pathlib import Path
@@ -103,7 +104,7 @@ class EditRewardInferencer:
         model.load_state_dict(state_dict, strict=True)
 
         model.eval()
-        self.model = model
+        self.model: Qwen2_5_VLRewardModelBT_MultiHead = model
         self.processor = processor
         self.model.to(self.device)
         self.data_config = data_config
