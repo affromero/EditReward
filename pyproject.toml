@@ -21,7 +21,7 @@ dependencies = [
     "openai>=2.3.0",
     "megfile>=4.2.4",
     "sentencepiece>=0.2.1",
-    "deepspeed>=0.18.0",
+    "deepspeed>=0.18.0; sys_platform != 'darwin'",
     "fire>=0.7.1",
     "omegaconf>=2.3.0",
     "matplotlib>=3.10.7",
